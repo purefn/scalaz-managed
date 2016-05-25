@@ -1,4 +1,4 @@
-name := "managed"
+name := "scalaz-managed"
 
 organization := "org.scalaz"
 
