@@ -21,18 +21,21 @@ import java.nio.file._
 
 object Examples extends SafeApp {
 
-  def withFileOutputStream[A](p: Path): Forall[Lambda[R => (OutputStream => IO[R]) => IO[R]]] =
-    new Forall[Lambda[R => (OutputStream => IO[R]) => IO[R]]] {
-      def apply[R]: (OutputStream => IO[R]) => IO[R] = run =>
-        IO(Files.newOutputStream(p)).
-          bracket(os => IO(os.close))(run)
-    }
+  def withFileOutputStream[A](p: Path)(f: OutputStream => IO[R]): IO[R] =
+    IO(Files.newOutputStream(p)).bracket(os => IO(os.close))(f)
 
-  def withFileInputStream[A](p: Path): Forall[Lambda[R => (InputStream => IO[R]) => IO[R]]] =
-    new Forall[Lambda[R => (InputStream => IO[R]) => IO[R]]] {
-      def apply[R]: (InputStream => IO[R]) => IO[R] = run =>
-        IO(Files.newInputStream(p)).
-          bracket(is => IO(is.close))(run)
+  def withFileInputStream[A](p: Path)(f: InputStream => IO[R]): IO[R] =
+    IO(Files.newInputStream(p)).bracket(is => IO(is.close))(f)
+
+  def fileOutputStream(p: Path): Managed[OutputStream] =
+    new Managed[OutputStream] {
+      def apply[A](f: OutputStream => IO[A]) =
+        withFileOutputStream(p)(f)
+
+  def fileInputStream(p: Path): Managed[InputStream] =
+    new Managed[InputStream] {
+      def apply[A](f: InputStream => IO[A]) =
+        withFileInputStream(p)(f)
     }
 
   def copy(in: InputStream, out: OutputStream): IO[Unit] =
@@ -45,8 +48,8 @@ object Examples extends SafeApp {
   override def runc: IO[Unit] =
     Managed.run(
       for {
-        in  <- Managed(withFileInputStream(Paths.get("inFile.txt")))
-        out <- Managed(withFileOutputStream(Paths.get("outFile.txt")))
+        in  <- fileInputStream(Paths.get("inFile.txt"))
+        out <- fileOutputStream(Paths.get("outFile.txt"))
         _   <- copy(in, out).liftIO[Managed]
       } yield ()
     )

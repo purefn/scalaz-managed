@@ -11,19 +11,19 @@ object Examples extends SafeApp {
     IO(Files.newOutputStream(p)).bracket(os => IO(os.close))(f)
 
   def fileOutputStream(p: Path): Managed[OutputStream] =
-    Managed(new Forall[Lambda[R => (OutputStream => IO[R]) => IO[R]]] {
-      def apply[R]: (OutputStream => IO[R]) => IO[R] =
-        withFileOutputStream(p)
-    })
+    new Managed[OutputStream] {
+      def apply[R](f: OutputStream => IO[R]): IO[R] =
+        withFileOutputStream(p)(f)
+    }
 
   def withFileInputStream[A](p: Path)(f: InputStream => IO[A]): IO[A] =
     IO(Files.newInputStream(p)).bracket(is => IO(is.close))(f)
 
   def fileInputStream[A](p: Path): Managed[InputStream] =
-    Managed(new Forall[Lambda[R => (InputStream => IO[R]) => IO[R]]] {
-      def apply[R]: (InputStream => IO[R]) => IO[R] =
-        withFileInputStream(p)
-    })
+    new Managed[InputStream] {
+      def apply[R](f: InputStream => IO[R]): IO[R] =
+        withFileInputStream(p)(f)
+    }
 
   def copy(in: InputStream, out: OutputStream): IO[Unit] =
     IO {

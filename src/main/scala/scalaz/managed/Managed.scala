@@ -53,13 +53,15 @@ import scalaz.effect._
  * import scalaz.managed._
  *
  * def fileInputStream(path: String): Managed[FileInputStream] =
- *   Managed(new Forall[Lambda[A => (FileInputStream => IO[A]) => IO[A]]] {
- *     def apply[A] = withFileInputStream(path)
+ *   new Managed[FileInputStream] {
+ *     def apply[A](f: FileInputStream => IO[A]) =
+ *       withFileInputStream(path)(f)
  *   }
  *
  * def fileOutputStream(path: String): Managed[FileOutputStream] =
- *   Managed(new Forall[Lambda[A => (FileOutputStream => IO[A]) => IO[A]]] {
- *     def apply[A] = withFileOutputStream(path)
+ *   new Managed[FileOutputStream] {
+ *     def apply[A](f: FileOutputStream) =
+ *       withFileOutputStream(path)(f)
  *   }
  *
  *  def main(args: Array[String]) =
@@ -72,27 +74,26 @@ import scalaz.effect._
  *    )
  * }}}
  */
-sealed abstract class Managed[A] { self =>
-  protected[Managed] def apply[R](pure_ : A => IO[R]): IO[R]
+abstract class Managed[A] { self =>
+  def apply[R](f: A => IO[R]): IO[R]
 
   final def map[B](f: A => B): Managed[B] =
     new Managed[B] {
-      def apply[R](pure_ : B => IO[R]): IO[R] =
-        self.apply(a => pure_(f(a)))
+      def apply[R](g: B => IO[R]): IO[R] =
+        self.apply(a => g(f(a)))
     }
 
   final def flatMap[B](f: A => Managed[B]): Managed[B] =
     new Managed[B] {
-      def apply[R](pure_ : B => IO[R]): IO[R] =
-        self.apply(a => f(a).apply(b => pure_(b)))
+      def apply[R](g: B => IO[R]): IO[R] =
+        self.apply(a => f(a).apply(g))
     }
 }
 
 object Managed {
   def apply[A](f: Forall[Lambda[R => (A => IO[R]) => IO[R]]]): Managed[A] =
     new Managed[A] {
-      def apply[R](pure_ : A => IO[R]): IO[R] =
-        f.apply(pure_)
+      def apply[R](g: A => IO[R]): IO[R] = f.apply(g)
     }
 
   /**
@@ -110,8 +111,7 @@ object Managed {
   implicit val ManagedMonadIO: MonadIO[Managed] = new MonadIO[Managed] {
     override def point[A](a: => A): Managed[A] =
       new Managed[A] {
-        override def apply[R](pure_ : A => IO[R]): IO[R] =
-          pure_(a)
+        override def apply[R](f: A => IO[R]): IO[R] = f(a)
       }
 
     override def map[A, B](fa: Managed[A])(f: A => B): Managed[B] =
@@ -122,8 +122,7 @@ object Managed {
 
     override def liftIO[A](io: IO[A]): Managed[A] =
       new Managed[A] {
-        def apply[R](pure_ : A => IO[R]): IO[R] =
-          io.flatMap(pure_)
+        def apply[R](f: A => IO[R]): IO[R] = io.flatMap(f)
       }
   }
 
