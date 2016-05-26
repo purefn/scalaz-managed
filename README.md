@@ -31,6 +31,7 @@ object Examples extends SafeApp {
     new Managed[OutputStream] {
       def apply[A](f: OutputStream => IO[A]) =
         withFileOutputStream(p)(f)
+    }
 
   def fileInputStream(p: Path): Managed[InputStream] =
     new Managed[InputStream] {
