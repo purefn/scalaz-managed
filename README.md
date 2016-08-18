@@ -1,4 +1,4 @@
-# scalaz-managed v0.1
+# scalaz-managed v0.2.0
 
 This library contains the `Managed` monad, which is a small building block for
 wrapping resources that you acquire in an exception-safe way using a callback.
@@ -31,6 +31,7 @@ object Examples extends SafeApp {
     new Managed[OutputStream] {
       def apply[A](f: OutputStream => IO[A]) =
         withFileOutputStream(p)(f)
+    }
 
   def fileInputStream(p: Path): Managed[InputStream] =
     new Managed[InputStream] {
